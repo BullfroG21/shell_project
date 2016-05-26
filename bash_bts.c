@@ -69,7 +69,6 @@ int main(void) {
 			  sprintf(tmpzahl, "%i\n", counter);
 			  fseek(history_file,0,SEEK_SET);
 			  fprintf(history_file,tmpzahl);
-			  //strcpy(input_history,(char *)counter);
 			  fseek(history_file,0,SEEK_END);
 			  strcpy(input_history,input);
 			  fprintf(history_file,input_history);
@@ -120,8 +119,19 @@ int main(void) {
 			  else if(strcmp(input,"pushd")==0){
 				  FILE * pushing;
 				  pushing = fopen("path.txt","w");
-				  fprintf(pushing, charpwd);
+				  fprintf(pushing,charpwd);
 				  fclose(pushing);
+			  }
+			  else if(strcmp(input,"popd")==0){
+				  FILE * pushing;
+				  char * tmpstring = malloc(sizeof(char) * 1024);
+				  pushing = fopen("path.txt","r");
+				  fgets(tmpstring,1024,pushing);
+				  if(change_dir(strlen(charpwd),charpwd,strlen(tmpstring),tmpstring) == 0){
+					  printf("Path %s not existing!\n", arguments);
+				  }
+				  fclose(pushing);
+				  free(tmpstring);
 			  }
 			  else if(strcmp(input,"history")==0){
 				  char * tmpstring = malloc(sizeof(char) * 1024);
@@ -129,8 +139,7 @@ int main(void) {
 				  fgets(tmpstring,1024,history_file);
 				 // fscanf(config_file, "%*[^\n]\n", NULL);
 				  int i;
-				  for(i=0;i<counter-1;i++){
-					// printf("heho");
+				  for(i=0;i<counter;i++){
 				  	 fgets(tmpstring,1024,history_file);
 					 printf("%i\t%s",i+1,tmpstring);
 				  }
