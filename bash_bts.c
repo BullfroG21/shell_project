@@ -25,145 +25,156 @@ char helps[5][100]={{"Befehl [fhsdate] gibt das Datum von heute aus"},
                     {"Befehl [help] gibt alle Befehle aus"},
                     {"Befehl [exit] schließt das Programm"}};
 int main(void) {
-	 DIR * dir;
-	 struct dirent * currentdir;
-	 FILE * history_file;
-	 int counter = 0;
-	 history_file = fopen("history.txt","r+");
-	 //Fehlerkontrolle für fopen missing
-	 char * charpwd = malloc(sizeof(char)* 1024);
-	 if(charpwd == NULL){
-		 return ERROR_ALLOKATING;
-	 }
-	 strcpy(charpwd,"/home/flo/"); //copy of starting directory
-	 int exit = 0; //0= false; 1=true for action "exit"
-	 //loop until user writes "exit"
-	 if ((dir = opendir (charpwd)) != NULL) {
-		  currentdir = readdir (dir);
-		 // printf ("%s\n", currentdir->d_name);
-	 }
-	 else{
-		  printf("Failed to open dir");
-	 }
-	 while(exit==0){
+	DIR * dir;
+	FILE * history_file;
+	int counter = 0;
+	history_file = fopen("history.txt","r+");
+	//Fehlerkontrolle für fopen missing
+	char * charpwd = malloc(sizeof(char)* 1024);
+	if(charpwd == NULL){
+		return ERROR_ALLOKATING;
+	}
+	strcpy(charpwd,"/home/flo/"); //copy of starting directory
+	int exit = 0; //0= false; 1=true for action "exit"
+	//loop until user writes "exit"
+	if ((dir = opendir (charpwd)) != NULL) {
+
+	 // printf ("%s\n", currentdir->d_name);
+	}
+	else{
+		 printf("Failed to open dir");
+	}
+	while(exit==0){
 		  //echo; fhsdate; fhstime; exit; help;
-		 int i;
-		  int inputlength;
-		  char arguments[100];
-		  int attachment = 0;
-		  char * input = malloc(sizeof(char)*1000);
-		  //tries to open dir
-		  printf("%s> ",charpwd);
+		int i;
+		int inputlength;
+		char arguments[100];
+		int attachment = 0;
+		char * input = malloc(sizeof(char)*1000);
+		//tries to open dir
+		printf("%s> ",charpwd);
 
-
+		pid_t pid;
+		int parent,status;
 		  //File * stream;
-		  fgets(input,1000, stdin);
-		  if(input[0]!='\n'){
+		parent = fork();
+		if(parent == 0){
+			fgets(input,1000, stdin);
+			if(input[0]!='\n'){
+				char input_history [strlen(input)];
+				fseek(history_file,0,SEEK_SET);
+				fscanf(history_file, "%i", &counter);
+				counter++;
+				char tmpzahl[10];
+				sprintf(tmpzahl, "%i\n", counter);
+				fseek(history_file,0,SEEK_SET);
+				fprintf(history_file,tmpzahl);
+				fseek(history_file,0,SEEK_END);
+				strcpy(input_history,input);
+				fprintf(history_file,input_history);
 
 
-			  char input_history [strlen(input)];
-			  fseek(history_file,0,SEEK_SET);
-			  fscanf(history_file, "%i", &counter);
-			  counter++;
-			  char tmpzahl[10];
-			  sprintf(tmpzahl, "%i\n", counter);
-			  fseek(history_file,0,SEEK_SET);
-			  fprintf(history_file,tmpzahl);
-			  fseek(history_file,0,SEEK_END);
-			  strcpy(input_history,input);
-			  fprintf(history_file,input_history);
-
-
-			  inputlength= strlen(input);
-			  realloc(input,strlen(input));
-			  int pos;
-			  pos = strcspn(input," ");
-			  //"Switch"
-			  if(pos<strlen(input)){
-				  attachment = 1;
-				  strcpy(arguments,input+pos+1);
-				  realloc(input,pos);
-				  input[pos]='\0';
-				  arguments[inputlength-pos-2]='\0';
-			  }
-			  else{
-				  input[inputlength-1]='\0';
-			  }
-			  //action echo
-			  if(strcmp(input,"echo")==0){
-				  printf("%s\n",arguments);
-			  }
-			  //action cd - change directory
-			  else if(strcmp(input,"cd")==0){
-				  if(change_dir(strlen(charpwd),charpwd,strlen(arguments),arguments) == 0){
-					  printf("Path %s not existing!\n", arguments);
+				inputlength= strlen(input);
+				realloc(input,strlen(input));
+				int pos;
+				pos = strcspn(input," ");
+				//"Switch"
+				if(pos<strlen(input)){
+					attachment = 1;
+					strcpy(arguments,input+pos+1);
+					realloc(input,pos);
+					input[pos]='\0';
+					arguments[inputlength-pos-2]='\0';
+				}
+				else{
+					input[inputlength-1]='\0';
+				}
+				  //action echo
+				  if(strcmp(input,"echo")==0){
+					  printf("%s\n",arguments);
 				  }
-			  }
-			  //action help
-			  else if(strcmp(input,"help")==0){
-				   int i;
-				   if(attachment==1){
-						for(i=0; i<(sizeof(tasks)/8);i++){
-							 if(strcmp(arguments,tasks[i])==0){
-								  printf("%s",helps[i]);
-								  break;
-							 }
+				  //action cd - change directory
+				  else if(strcmp(input,"cd")==0){
+					  if(change_dir(strlen(charpwd),charpwd,strlen(arguments),arguments) == 0){
+						  printf("Path %s not existing!\n", arguments);
+					  }
+				  }
+				  else if(strcmp(input,"ls")==0){
+					  if(show_dir(strlen(charpwd),charpwd) < 0){
+						  return -4;
+					  }
+				  }
+				  //action help
+				  else if(strcmp(input,"help")==0){
+					   int i;
+					   if(attachment==1){
+							for(i=0; i<(sizeof(tasks)/8);i++){
+								 if(strcmp(arguments,tasks[i])==0){
+									  printf("%s",helps[i]);
+									  break;
+								 }
+							}
+					   }
+					   else{
+						   for(i=0; i<(sizeof(tasks)/8);i++){
+							printf("-%s\n",tasks[i]);
 						}
-				   }
-				   else{
-					   for(i=0; i<(sizeof(tasks)/8);i++){
-						printf("-%s\n",tasks[i]);
-					}
-				   }
-			  }
-			  else if(strcmp(input,"pushd")==0){
-				  FILE * pushing;
-				  pushing = fopen("path.txt","w");
-				  fprintf(pushing,charpwd);
-				  fclose(pushing);
-			  }
-			  else if(strcmp(input,"popd")==0){
-				  FILE * pushing;
-				  char * tmpstring = malloc(sizeof(char) * 1024);
-				  pushing = fopen("path.txt","r");
-				  fgets(tmpstring,1024,pushing);
-				  if(change_dir(strlen(charpwd),charpwd,strlen(tmpstring),tmpstring) == 0){
-					  printf("Path %s not existing!\n", arguments);
+					   }
 				  }
-				  fclose(pushing);
-				  free(tmpstring);
-			  }
-			  else if(strcmp(input,"history")==0){
-				  char * tmpstring = malloc(sizeof(char) * 1024);
-				  fseek(history_file,0,SEEK_SET);
-				  fgets(tmpstring,1024,history_file);
-				 // fscanf(config_file, "%*[^\n]\n", NULL);
-				  int i;
-				  for(i=0;i<counter;i++){
-				  	 fgets(tmpstring,1024,history_file);
-					 printf("%i\t%s",i+1,tmpstring);
+				  else if(strcmp(input,"pushd")==0){
+					  FILE * pushing;
+					  pushing = fopen("path.txt","w");
+					  fprintf(pushing,charpwd);
+					  fclose(pushing);
 				  }
-			  }
-			  //action fhsdate
-			  else if(strcmp(input,"fhsdate")==0){
-				 getdate();
-			  }
-			  //action fhstime
-			  else if(strcmp(input,"fhstime")==0){
-				 getTime();
-			  }
-			  else if(strcmp(input,"pwd")==0){
-				 printf("%s\n",charpwd);
-			  }
-			  //action exit
-			  else if(strcmp(input,"exit")==0){
-				 exit = 1;
-			  }
-			  else{
-				 printf("Unknown input: %s.\n", input);
-			  }
-		  }
-	 }
+				  else if(strcmp(input,"popd")==0){
+					  FILE * pushing;
+					  char * tmpstring = malloc(sizeof(char) * 1024);
+					  pushing = fopen("path.txt","r");
+					  fgets(tmpstring,1024,pushing);
+					  if(change_dir(strlen(charpwd),charpwd,strlen(tmpstring),tmpstring) == 0){
+						  printf("Path %s not existing!\n", arguments);
+					  }
+					  fclose(pushing);
+					  free(tmpstring);
+				  }
+				  else if(strcmp(input,"history")==0){
+					  char * tmpstring = malloc(sizeof(char) * 1024);
+					  fseek(history_file,0,SEEK_SET);
+					  fgets(tmpstring,1024,history_file);
+					 // fscanf(config_file, "%*[^\n]\n", NULL);
+					  int i;
+					  for(i=0;i<counter;i++){
+						  fgets(tmpstring,1024,history_file);
+						  printf("%i\t%s",i+1,tmpstring);
+					  }
+				  }
+				  //action fhsdate
+				  else if(strcmp(input,"fhsdate")==0){
+					 getdate();
+				  }
+				  //action fhstime
+				  else if(strcmp(input,"fhstime")==0){
+					 getTime();
+				  }
+				  else if(strcmp(input,"pwd")==0){
+					 printf("%s\n",charpwd);
+				  }
+				  //action exit
+				  else if(strcmp(input,"exit")==0){
+					 exit = 1;
+				  }
+				  else{
+					 printf("Unknown input: %s.\n", input);
+				  }
+				}
+		}else{
+			pid = wait(&status);
+			if(status > 0){
+				printf("ERROR input\n");
+			}
+		}
+	}
 	 fclose(history_file);
 	 return 0;
 }
@@ -187,7 +198,7 @@ void getTime() {
    printf("%s\n",string);
 }
 
-	int change_dir(int dir_size, char charpwd[dir_size], int arg_size, char arguments[arg_size]){
+int change_dir(int dir_size, char charpwd[dir_size], int arg_size, char arguments[arg_size]){
 	DIR * dir;
 	char * tmpstring = malloc(sizeof(char)*1024);
 	if(tmpstring==0){
@@ -232,12 +243,26 @@ void getTime() {
 		  return 0;
 	}
 }
+int show_dir(int size, char path_dir[size]){
+	if(path_dir <= 0){
+		return -1;
+	}
+	DIR * current_dir;
+	if((current_dir = opendir(path_dir)) == NULL){
+		return -2;
+	}
+	struct dirent * dir_element;
+	while(dir_element = readdir (current_dir)){
+		printf("%s\t",dir_element->d_name);
+	}
+	printf("\n");
+}
 
 void getecho(int size, char arguments[size]){
- printf("%s",arguments);
+	printf("%s",arguments);
 }
 void getexit(){
- exit;
+	exit;
 }
 void gethelp(int size, char argument[size]){
 
