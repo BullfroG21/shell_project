@@ -18,6 +18,7 @@
 #define ERROR_CHANGING_DIRECTORY (-2);
 
 struct tm *tmnow;
+char dir_file[15] = {"tmp_dir.txt"};
 char tasks[5][8] ={"fhsdate","fhstime","echo","help","exit"};
 char helps[5][100]={{"Befehl [fhsdate] gibt das Datum von heute aus"},
                     {"Befehl [fhstime] gibt die jetztige Uhrzeit aus"},
@@ -27,6 +28,7 @@ char helps[5][100]={{"Befehl [fhsdate] gibt das Datum von heute aus"},
 int main(void) {
 	DIR * dir;
 	FILE * history_file;
+	FILE * dir_stream;
 	int counter = 0;
 	history_file = fopen("history.txt","r+");
 	//Fehlerkontrolle für fopen missing
@@ -44,8 +46,8 @@ int main(void) {
 	else{
 		 printf("Failed to open dir");
 	}
-	while(exit==0){
-		  //echo; fhsdate; fhstime; exit; help;
+	do{
+		//echo; fhsdate; fhstime; exit; help;
 		int i;
 		int inputlength;
 		char arguments[100];
@@ -53,13 +55,13 @@ int main(void) {
 		char * input = malloc(sizeof(char)*1000);
 		//tries to open dir
 		printf("%s> ",charpwd);
-
 		pid_t pid;
-		int parent,status;
+		int parent;
+		void * status;
 		  //File * stream;
+		fgets(input,1000, stdin);
 		parent = fork();
 		if(parent == 0){
-			fgets(input,1000, stdin);
 			if(input[0]!='\n'){
 				char input_history [strlen(input)];
 				fseek(history_file,0,SEEK_SET);
@@ -97,6 +99,13 @@ int main(void) {
 				  else if(strcmp(input,"cd")==0){
 					  if(change_dir(strlen(charpwd),charpwd,strlen(arguments),arguments) == 0){
 						  printf("Path %s not existing!\n", arguments);
+					  }else{
+						  dir_stream = fopen(dir_file,"w");
+						  if(dir_stream>0){
+							  fprintf(dir_stream,"%s",charpwd);
+							  fclose(dir_stream);
+							  return 2;
+						  }
 					  }
 				  }
 				  else if(strcmp(input,"ls")==0){
@@ -134,9 +143,15 @@ int main(void) {
 					  fgets(tmpstring,1024,pushing);
 					  if(change_dir(strlen(charpwd),charpwd,strlen(tmpstring),tmpstring) == 0){
 						  printf("Path %s not existing!\n", arguments);
+					  }else{
+						  dir_stream = fopen(dir_file,"w");
+						  if(dir_stream>0){
+							  fprintf(dir_stream,"%s",charpwd);
+							  fclose(dir_stream);
+							  return 2;
+						  }
 					  }
-					  fclose(pushing);
-					  free(tmpstring);
+
 				  }
 				  else if(strcmp(input,"history")==0){
 					  char * tmpstring = malloc(sizeof(char) * 1024);
@@ -148,6 +163,7 @@ int main(void) {
 						  fgets(tmpstring,1024,history_file);
 						  printf("%i\t%s",i+1,tmpstring);
 					  }
+					  return 2;
 				  }
 				  //action fhsdate
 				  else if(strcmp(input,"fhsdate")==0){
@@ -162,19 +178,53 @@ int main(void) {
 				  }
 				  //action exit
 				  else if(strcmp(input,"exit")==0){
-					 exit = 1;
+					 return 1;
 				  }
-				  else{
+				  else if(strncmp(input,"./",2)==0){
+					  pid_t pid;
+					  int p_type, status; //p_type = process type for example child {0} or parent {1<=}
+					  p_type = fork();
+					  if(p_type == 0){ // child
+						  //deklaring path including path of action
+						  char tmp_path[strlen(charpwd)+strlen(input)];
+						  strcpy(tmp_path,charpwd); strcat(tmp_path,input+2);
+						  //executing and checking result of action [-1->error, 0< ok, etc.]
+						  return execlp(tmp_path, input+2, arguments, NULL);
+					  }
+					  else{ // parent
+						  pid = wait(&status);
+						  if(status < 0 || status >= 65280){
+							  printf("ERROR accrued during executing of required file: \n\t*Filename: %s\n\t*Filepath %s\n",input+2,charpwd);
+							  if(strcmp(arguments,"")!=0){
+								  printf("\t*Arguments: %s\n",arguments);
+							  }
+						  }else{
+						  }
+					  }
+				  }else{
 					 printf("Unknown input: %s.\n", input);
 				  }
+				  return 0;
 				}
+			return 0;
 		}else{
 			pid = wait(&status);
-			if(status > 0){
+			if(status < 0){
 				printf("ERROR input\n");
+			}else if(status == 256){
+				exit = 1;
+			}else if(status == 0){
+			}else if(status == (2*(256))){
+				dir_stream=fopen(dir_file,"r");
+				if(dir_stream > 0){
+					fgets(charpwd,"%s",dir_stream);
+					fclose(dir_stream);
+				}
+			}
+			else{
 			}
 		}
-	}
+	}while(exit != 1);
 	 fclose(history_file);
 	 return 0;
 }
@@ -245,7 +295,7 @@ int change_dir(int dir_size, char charpwd[dir_size], int arg_size, char argument
 }
 int show_dir(int size, char path_dir[size]){
 	if(path_dir <= 0){
-		return -1;
+		return -4;
 	}
 	DIR * current_dir;
 	if((current_dir = opendir(path_dir)) == NULL){
